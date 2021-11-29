@@ -2,14 +2,19 @@ const XLSX = require('xlsx-style');
 const fs = require('fs');
 
 const fills = require('./fills');
+const specs = {
+  date: { width: 100 },
+  size: { width: 200 },
+  fee: { width: 300 },
+  side: { width: '3' },
+};
 
 function build() {
   const writeOptions = { bookType: 'xlsx', bookSST: false, type: 'binary' };
-  const mysheet = addUsedRange(
-    sheetFromArrayOfArrays(
-      dataSetToArrayofArrays(fills, ['date', 'price', 'size'])
-    )
+  const sheet = addUsedRange(
+    sheetFromArrayOfArrays(datasetToArrayofArrays(fills, specs))
   );
+  const mysheet = addColumnWidths(sheet, specs);
   const workbook = {
     SheetNames: ['mysheet'],
     Sheets: {
@@ -23,8 +28,21 @@ function build() {
 
 build();
 
-function dataSetToArrayofArrays(data, specification = Object.keys(data[0])) {
-  return data.map((item) => specification.map((header) => item[header]));
+function parseWidth({ width }) {
+  //   console.log({ width });
+  if (!width) {
+    return {};
+  }
+  if (!Number.isInteger(parseInt(width))) {
+    throw new Error('Provide column width as a number');
+  }
+  return typeof width === 'number' ? { wpx: width } : { wch: width };
+}
+
+function datasetToArrayofArrays(data, specification = Object.keys(data[0])) {
+  return data.map((item) =>
+    Object.keys(specification).map((header) => item[header])
+  );
 }
 
 function sheetFromArrayOfArrays(rows) {
@@ -54,4 +72,12 @@ function addUsedRange(sheet) {
     sheet
   );
   return sheetWithRef;
+}
+
+function addColumnWidths(sheet, specs) {
+  const columnWidths = [];
+  for (column in specs) {
+    columnWidths.push(parseWidth(specs[column]));
+  }
+  return { ...sheet, ...{ ['!cols']: columnWidths } };
 }
